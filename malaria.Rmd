@@ -13,7 +13,6 @@ library(tidytext)
 Reading Data
 ```{r read data}
 # data cleaning to remove redundant columns and missing values
-setwd("C:/Users/Admin/Desktop/sgh")
 death_rate <- read.csv("malaria_deaths.csv", header = TRUE, sep = ",")
 death_age <- read.csv("malaria_deaths_age.csv", header = TRUE, sep = ",")
 death_age <- death_age[-c(1)]
