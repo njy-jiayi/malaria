@@ -1,0 +1,62 @@
+---
+title: "malaria"
+output: html_document
+---
+
+```{r library}
+library(ggplot2)
+library(dplyr)
+library(tidytext)
+```
+
+
+Reading Data
+```{r read data}
+# data cleaning to remove redundant columns and missing values
+setwd("C:/Users/Admin/Desktop/sgh")
+death_rate <- read.csv("malaria_deaths.csv", header = TRUE, sep = ",")
+death_age <- read.csv("malaria_deaths_age.csv", header = TRUE, sep = ",")
+death_age <- death_age[-c(1)]
+#new_df <- death_age[is.na(death_age$code),]
+inc_rate <- read.csv("malaria_inc.csv", header = TRUE, sep = ",")
+# continent data from: https://worldpopulationreview.com/country-rankings/list-of-countries-by-continent
+region <- read.csv("continents.csv", header = TRUE, sep = ",")
+names(region) <- c('Country', 'Continent')
+unique(death_rate$Entity[!death_rate$Entity %in% region$Country]) # check if all countries are included and match the names if needed
+```
+
+
+Global Malaria Death Rate
+```{r global malaria death rate}
+global_death <- merge(x = death_rate, y = region, by.x = 'Entity', by.y = 'Country')
+names(global_death) <- c('entity', 'code', 'year', 'deaths_per.100000.people', 'continent')
+data <- global_death %>% group_by(continent, year) %>% summarise(deaths_per.100000.people = sum(deaths_per.100000.people)) %>% filter(year >= 2000) 
+
+
+data %>% ggplot(aes(x = year, y = deaths_per.100000.people)) + geom_point(color = '#03A9F4') + geom_line(color = '#1A237E') + facet_wrap(~continent, scales = 'free') + xlab('Year') + ylab('Number of deaths (per 100000 people)') + theme(axis.title = element_text(size = 8), plot.title = element_text(hjust = 0.5)) + ggtitle('Number of Malaria Deaths')
+```
+
+Africa has a distinctly large number of malaria deaths per 100000 persons compared to the other continents. We can deduce that death by malaria have been on a constant decline.
+
+
+
+Top incidence rate
+```{r top incidence rate}
+names(inc_rate) <- c('entity', 'code', 'year', 'incidence_per.1000.people.at.risk')
+data2 <- inc_rate  %>% arrange(desc(incidence_per.1000.people.at.risk)) %>% group_by(year) %>% mutate(entity = reorder_within(entity,incidence_per.1000.people.at.risk, year)) %>% slice(1:5) 
+
+data2 %>% ggplot(aes(x = incidence_per.1000.people.at.risk, y = entity, fill = year)) + geom_bar(stat = 'identity') + facet_wrap(~year, scales = 'free_y', ncol = 1) + scale_y_reordered() + xlab('Number of incidence (per 1000 people at risk)') + ylab('') + theme(axis.title = element_text(size = 8),  axis.ticks.y=element_blank(), legend.position = 'none', plot.title = element_text(hjust = -0.4)) + ggtitle('Countries with highest malaria infection rate')
+```
+
+Identify countries with highest rate of infection, countries with high incidence will remain high for many years as their healthcare system is limited. However, it coincides with the decrease in death rate as number of incidence per 1000 people at risk is decreasing over the years.
+
+
+
+Prevalence of Death by Malaria in Different Age Group
+```{r prevalence of death by malaria in different age group}
+data3 <- death_age %>% group_by(year, age_group) %>% summarise(deaths = sum(deaths)) %>% transform(percent = ave(deaths, year, FUN = prop.table)) %>% mutate(percent = round(percent, 4)) %>% filter(year >= 2000)
+
+data3 %>% ggplot(aes(x = year, y = deaths, fill = factor(age_group, levels = c('70 or older', '50-69', '15-49', '5-14', 'Under 5')))) + geom_bar(position = 'fill', stat = 'identity') + scale_fill_manual(values = c('#0D47A1', '#1565C0', '#1E88E5', '#42A5F5', '#64B5F6')) + scale_y_continuous(labels = scales::percent_format()) + geom_text(aes(label = paste0(percent * 100)), color = 'white', position = position_fill(vjust = 0.5), size = 2) + xlab('Year') + ylab('') + theme(axis.title = element_text(size = 8), legend.title = element_text(size = 8), legend.text = element_text(size = 8), legend.key.size = unit(0.5, 'cm'), plot.title = element_text(hjust = 0.7)) + labs(fill = 'age group') + ggtitle('% of death by malaria in different age groups')
+```
+
+Percentage of deaths within each age group, children under 5 are the most vulnerable.
